@@ -70,17 +70,19 @@ with mp_hands.Hands(min_detection_confidence=0.5,
 
                 mp_drawing.draw_landmarks(image, hand_landmarks, mp_hands.HAND_CONNECTIONS)
                 if key_input not in key_list:
-                    print(key_input)
-                    write_csv(image, key_input)
-                    cv2.putText(image, chr(key_input), (0, 30), cv2.FONT_HERSHEY_PLAIN, 2,
+                    C = chr(key_input)
+                    write_csv(image, C)
+                    cv2.putText(image, C, (0, 30), cv2.FONT_HERSHEY_PLAIN, 2,
                                 (0, 0, 255), thickness=3)
                 else:
-                    cv2.putText(image, "press key to save / '-' for save, '+' for don't save", (0, 30), cv2.FONT_HERSHEY_PLAIN, 1,
+                    cv2.putText(image, "press key to save", (0, 30), cv2.FONT_HERSHEY_PLAIN, 2,
                                 (0, 0, 255), thickness=3)
-
+                    cv2.putText(image, "'-' for save, '+' for don't save", (0, 60),
+                                cv2.FONT_HERSHEY_PLAIN, 2,
+                                (0, 0, 255), thickness=3)
         cv2.imshow('mouse and keyboard', image)
         exit_code = cv2.waitKey(5)
-        if exit_code == 45:
+        if exit_code == 45 or exit_code == 27:
             temp_file.close()
             if os.path.isfile("files/temp_data.csv"):
                 os.remove("files/temp_data.csv")
