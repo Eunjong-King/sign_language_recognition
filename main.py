@@ -38,60 +38,57 @@ def get_label():
 
     return C
 
-def print_hangul(ch, previous_ch, my_word):
-    checker1 = 0
-    checker2 = 0
-    if ch != previous_ch:
-        if ch in ja:  # 자음입력
-            for i in range(0, 11):
-                if ch == jong[i][1] and previous_ch == jong[i][0]:
-                    my_word = my_word[:-1]
-                    my_word += jong[i][2]
-                    checker1 = 1
-                    checker2 = 1
-                    break
-            if checker1 == 0:  # 자음특수한 경우가 아닐때
-                checker2 = 0
-                my_word += ch
-            previous_ch = ch
-            print(join_jamos(my_word))
-            checker1 = 0
-        elif ch in mo:  # 모음입력
-            if previous_ch == 'ㅗ' and ch in mo2:  # ㅗ였고 ㅏorㅐ이면
-                my_word = my_word[:-1]
-                previous_ch = ch
-                ch = mo4[mo2.index(ch)]
-            elif previous_ch == 'ㅜ' and ch in mo3:  # ㅜ였고 ㅓorㅔ이면
-                my_word = my_word[:-1]
-                previous_ch = ch
-                ch = mo4[mo3.index(ch) + 2]
-            else:  # 그냥 모음
-                if checker2 == 1:
-                    l = my_word[-1]
-                    my_word = my_word[:-1]
-                    for i in range(0, 11):
-                        if jong[i][2] == l:
-                            my_word += jong[i][0]
-                            my_word += jong[i][1]
-                            break
-                    previous_ch = ch
-                    checker2 = 0
-                else:
-                    previous_ch = ch
+def merge_hangul(ch, previous_ch, my_word):
+    if ch == previous_ch:
+        return my_word, ch
+    # 무조건 전에 입력한거랑 달라야함 => ㄱ인식됐는데 다음 할게 헷갈리면 ㄱ만 200번 입력되는 대참사 막기 위함
+    else:
+        # ch가 자음일 때
+        if ch in ja:
+            # previous_ch도 자음이라서 만약에 합쳐질 수 있는 경우 ex) ㄱ + ㅅ => ㄳ
+            for pre, now, res in merge_ja:
+                if pre == previous_ch and now == ch:
+                    my_word = my_word[:-1] + res
+                    return my_word, res
+            # 일반적인 경우
             my_word += ch
-            print(join_jamos(my_word))
-        else:  # a, b, c or d입력
-            checker2 = 0
-            if ch == 'a':
+            return my_word, ch
+
+        # ch가 모음일 때
+        elif ch in mo:
+            # ㅗ + ㅏ => ㅘ 처럼 합쳐지는 경우
+            if previous_ch in mo:
+                for pre, now, res in merge_mo:
+                    if pre == previous_ch and now == ch:
+                        my_word = my_word[:-1] + res
+                        return my_word, res
+            # ㄱ -> ㅏ -> ㄱ -> ㅅ -> ㅏ 인경우 "갃ㅏ"가 아닌 "각사"가되야함
+            elif previous_ch in np.array(merge_ja)[:, 2]:
+                for pre, now, res in merge_ja:
+                    if res == previous_ch:
+                        my_word = my_word[:-1] + pre + now + ch
+                        return my_word, ch
+            # 아무것도 아닌 경우
+            my_word += ch
+            return my_word, ch
+
+        # ch가 특수기호일 때
+        else:
+            # 1일때 쌍자음으로 만들기, 2일때 재입력, 3일때 백스페이스, 4일때 스페이스
+            if ch == 1:
                 if previous_ch in ssang:
-                    my_word = my_word[:-1]
-                    my_word += chr(ord(previous_ch) + 1)
-            elif ch == 'c':
+                    # 다행히도 쌍자음의 유니코드는 그냥 자음의 +1이다
+                    my_word = my_word[:-1] + chr(ord(previous_ch) + 1)
+            elif ch == 2:
+                pass
+            elif ch == 3:
                 my_word = my_word[:-1]
-            elif ch == 'd':
+            elif ch == 4:
                 my_word += ' '
-            print(join_jamos(my_word))
-    return my_word, previous_ch
+
+            return my_word, ch
+
+
 
 
 kn = joblib.load('files/ML-model.pkl')
@@ -103,17 +100,13 @@ mp_hands = mp.solutions.hands
 dot_list = [4, 8, 12, 14, 16, 18, 20]
 dic = {'q':'ㅂ', 'w':'ㅈ', 'e':'ㄷ', 'r':'ㄱ', 't':'ㅅ', 'y':'ㅛ', 'u':'ㅕ', 'i':'ㅑ', 'o':'ㅐ', 'p':'ㅔ',
        'a':'ㅁ', 's':'ㄴ', 'd':'ㅇ', 'f':'ㄹ', 'g':'ㅎ', 'h':'ㅗ', 'j':'ㅓ', 'k':'ㅏ', 'l':'ㅣ',
-       'z':'ㅋ', 'x':'ㅌ', 'c':'ㅊ', 'v':'ㅍ', 'b':'ㅠ', 'n':'ㅜ', 'm':'ㅡ'}
-my_char = ['ㄱ', 'ㄴ', 'ㄷ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅅ', 'ㅇ', 'ㅈ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ', 'ㅏ', 'ㅑ', 'ㅓ', 'ㅕ', 'ㅗ',
-           'ㅛ', 'ㅜ', 'ㅠ', 'ㅡ', 'ㅣ', 'ㅐ', 'ㅒ', 'ㅔ', 'ㅖ', 'ㅢ', 'ㅚ', 'ㅟ', 'a', 'b', 'c']
+       'z':'ㅋ', 'x':'ㅌ', 'c':'ㅊ', 'v':'ㅍ', 'b':'ㅠ', 'n':'ㅜ', 'm':'ㅡ',
+       '1':1, '2': 2, '3': 3, '4': 4}
 ja = ['ㄱ','ㄴ','ㄷ','ㄹ','ㅁ','ㅂ','ㅅ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ']
 mo = ['ㅏ','ㅑ','ㅓ','ㅕ','ㅗ','ㅛ','ㅜ','ㅠ','ㅡ','ㅣ','ㅐ','ㅒ','ㅔ','ㅖ','ㅢ','ㅚ','ㅟ']
-mo1 = ['ㅗ', 'ㅜ']
-mo2 = ['ㅏ', 'ㅐ']
-mo3 = ['ㅓ', 'ㅔ']
-mo4 = ['ㅘ', 'ㅙ', 'ㅝ', 'ㅞ']
+merge_mo = [['ㅗ', 'ㅏ', 'ㅘ'], ['ㅗ', 'ㅐ', 'ㅙ'], ['ㅜ', 'ㅓ', 'ㅝ'], ['ㅜ', 'ㅔ', 'ㅞ']]
 ssang = ['ㄱ','ㄷ','ㅂ','ㅅ','ㅈ']
-jong = [['ㄱ', 'ㅅ', 'ㄳ'], ['ㄴ', 'ㅈ', 'ㄵ'], ['ㄴ', 'ㅎ', 'ㄶ'], ['ㄹ', 'ㄱ', 'ㄺ'], ['ㄹ', 'ㅁ', 'ㄻ'],
+merge_ja = [['ㄱ', 'ㅅ', 'ㄳ'], ['ㄴ', 'ㅈ', 'ㄵ'], ['ㄴ', 'ㅎ', 'ㄶ'], ['ㄹ', 'ㄱ', 'ㄺ'], ['ㄹ', 'ㅁ', 'ㄻ'],
         ['ㄹ', 'ㅂ', 'ㄼ'], ['ㄹ', 'ㅅ', 'ㄽ'], ['ㄹ', 'ㅌ', 'ㄾ'], ['ㄹ', 'ㅍ', 'ㄿ'], ['ㄹ', 'ㅎ', 'ㅀ'],
         ['ㅂ', 'ㅅ', 'ㅄ']]
 my_word = ''
@@ -140,7 +133,8 @@ with mp_hands.Hands(min_detection_confidence=0.5,
                 dump_list.append(C)
                 if len(dump_list) > 30 :
                     ch = max(dump_list)
-                    my_word, previous_ch = print_hangul(ch, previous_ch, my_word)
+                    my_word, previous_ch = merge_hangul(ch, previous_ch, my_word)
+                    print(join_jamos(my_word))
                     dump_list = []
         cv2.imshow('mouse and keyboard', image)
         exit_code = cv2.waitKey(5)
