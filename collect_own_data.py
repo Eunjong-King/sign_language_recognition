@@ -3,6 +3,8 @@ import mediapipe as mp
 import csv
 from math import sqrt
 import os
+from time import time
+import numpy as np
 
 def write_csv(image, key_input):
     label = key_input
@@ -36,19 +38,19 @@ def write_csv(image, key_input):
     feature_list.append((max_y - min_y) / (max_x - min_x) - 1)
     cv2.rectangle(image, (int(min_x), int(min_y)), (int(max_x), int(max_y)), (0, 0, 0), 2)
     feature_list.append(label)
-    wr.writerow(feature_list)
+    temp_wr.writerow(feature_list)
 
 
 mp_drawing = mp.solutions.drawing_utils
 mp_hands = mp.solutions.hands
-
 cap = cv2.VideoCapture(0)
-temp_file = open('files/temp_data.csv', 'w', newline='')
-wr = csv.writer(temp_file)
 dot_list = [4, 8, 12, 14, 16, 18, 20]
 w = round(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 h = round(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-key_list = [-1, 27, 45, 61]
+process_status = 0
+dataset_file = open("files/dataset.csv", 'a', newline='', encoding='utf-8')
+dataset_wr = csv.writer(dataset_file)
+label_count = 0
 with mp_hands.Hands(min_detection_confidence=0.5,
                     min_tracking_confidence=0.999,
                     max_num_hands=1
@@ -58,47 +60,93 @@ with mp_hands.Hands(min_detection_confidence=0.5,
         if not success:
             continue
 
-        image = cv2.cvtColor(cv2.flip(image, 1), cv2.COLOR_BGR2RGB)
-        image.flags.writeable = False
-        results = hands.process(image)
+        if process_status == 0:
+            guild_photo_time = time()
+            process_status = 1
 
-        image.flags.writeable = True
-        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-        if results.multi_hand_landmarks:
-            for hand_landmarks in results.multi_hand_landmarks:
-                key_input = cv2.waitKey(20)
+        if cv2.waitKey(10) == 27:
+            print("종료")
+            break
 
+        if process_status == 1:
+            if time()-guild_photo_time < 2:
+                image = cv2.imread("files/guide/"+str(label_count)+".png")
+                image = cv2.resize(image, dsize=(w, h), interpolation=cv2.INTER_AREA)
+                print(label_count, "번 사진 띄워주는 중...")
+            else:
+                process_status = 2
+
+        else:
+            image = cv2.cvtColor(cv2.flip(image, 1), cv2.COLOR_BGR2RGB)
+            image.flags.writeable = False
+            results = hands.process(image)
+            image.flags.writeable = True
+            image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+            if results.multi_hand_landmarks:
+                hand_landmarks = results.multi_hand_landmarks[0]
                 mp_drawing.draw_landmarks(image, hand_landmarks, mp_hands.HAND_CONNECTIONS)
-                if key_input not in key_list:
-                    C = chr(key_input)
-                    write_csv(image, C)
-                    cv2.putText(image, C, (0, 30), cv2.FONT_HERSHEY_PLAIN, 2,
-                                (0, 0, 255), thickness=3)
-                else:
-                    cv2.putText(image, "press key to save", (0, 30), cv2.FONT_HERSHEY_PLAIN, 2,
-                                (0, 0, 255), thickness=3)
-                    cv2.putText(image, "'-' for save, '+' for don't save", (0, 60),
-                                cv2.FONT_HERSHEY_PLAIN, 2,
-                                (0, 0, 255), thickness=3)
-        cv2.imshow('mouse and keyboard', image)
-        exit_code = cv2.waitKey(5)
-        if exit_code == 45 or exit_code == 27:
-            temp_file.close()
-            if os.path.isfile("files/temp_data.csv"):
-                os.remove("files/temp_data.csv")
-            break
-        elif exit_code == 61:
-            temp_file.close()
-            t = open("files/temp_data.csv")
-            reader = csv.reader(t)
-            f = open("files/dataset.csv", 'a', newline='', encoding='utf-8')
-            wr = csv.writer(f)
-            for row in reader:
-                wr.writerow(row)
-            f.close()
-            t.close()
-            if os.path.isfile("files/temp_data.csv"):
-                os.remove("files/temp_data.csv")
-            break
 
+        if process_status == 2:
+            waiting_time = time()
+            process_status = 3
+
+
+
+        if process_status == 3:
+            now_time = time() - waiting_time
+            if 0 <= now_time < 1:
+                print(3,"초 뒤 데이터화 시작")
+            elif 1 <= now_time < 2:
+                print(2,"초 뒤 데이터화 시작")
+            elif 2 <= now_time < 3:
+                print(1,"초 뒤 데이터화 시작")
+            else:
+                process_status = 4
+
+        if process_status == 4:
+            recording_time = time()
+            tempdata_file = open('files/temp_data.csv', 'w', newline='')
+            temp_wr = csv.writer(tempdata_file)
+            process_status = 5
+
+        if process_status == 5:
+            now_time = time() - recording_time
+            if now_time < 3:
+                if results.multi_hand_landmarks:
+                    print("data화 중...")
+                    write_csv(image, label_count)
+                    pass
+                else:
+                    print("손이 안보여요")
+            else:
+                process_status = 6
+                tempdata_file.close()
+
+        if process_status == 6:
+            ask_time = time()
+            process_status = 7
+
+        if process_status == 7:
+            now_time = time() - ask_time
+            if now_time < 4:
+                print("이 단어 다시 녹화할거면 q 저장하고 다음거 갈거면 e 안누르면 자동으로 저장")
+                exit_code = cv2.waitKey(1)
+                if exit_code == ord('q'):
+                    process_status = 0
+                elif exit_code == ord('e'):
+                    tempdata_file = open("files/temp_data.csv")
+                    reader = csv.reader(tempdata_file)
+                    for row in reader:
+                        dataset_wr.writerow(row)
+                    tempdata_file.close()
+                    process_status = 0
+                    label_count += 1
+            else:
+                process_status = 0
+
+        cv2.imshow('dataization', image)
+
+if os.path.isfile("files/temp_data.csv"):
+    os.remove("files/temp_data.csv")
+dataset_file.close()
 cap.release()
