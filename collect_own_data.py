@@ -5,6 +5,7 @@ from math import sqrt
 import os
 from time import time
 import numpy as np
+from PIL import ImageFont, ImageDraw, Image
 
 def write_csv(image, key_input):
     label = key_input
@@ -40,7 +41,14 @@ def write_csv(image, key_input):
     feature_list.append(label)
     temp_wr.writerow(feature_list)
 
+def write_hangul(image, text):
+    pil_image = Image.fromarray(image)
+    draw = ImageDraw.Draw(pil_image)
+    draw.text((1, h-35), text, font=font, fill=(0, 0, 255, 0))
+    image = np.array(pil_image)
+    return image
 
+font = ImageFont.truetype("files/tway_air.ttf", 30)
 mp_drawing = mp.solutions.drawing_utils
 mp_hands = mp.solutions.hands
 cap = cv2.VideoCapture(0)
@@ -65,14 +73,13 @@ with mp_hands.Hands(min_detection_confidence=0.5,
             process_status = 1
 
         if cv2.waitKey(10) == 27:
-            print("종료")
             break
 
         if process_status == 1:
             if time()-guild_photo_time < 2:
                 image = cv2.imread("files/guide/"+str(label_count)+".png")
                 image = cv2.resize(image, dsize=(w, h), interpolation=cv2.INTER_AREA)
-                print(label_count, "번 사진 띄워주는 중...")
+                image = write_hangul(image, str(label_count)+"번 사진 띄워주는 중...")
             else:
                 process_status = 2
 
@@ -95,11 +102,11 @@ with mp_hands.Hands(min_detection_confidence=0.5,
         if process_status == 3:
             now_time = time() - waiting_time
             if 0 <= now_time < 1:
-                print(3,"초 뒤 데이터화 시작")
+                image = write_hangul(image, str(3) + "초 뒤 데이터화 시작")
             elif 1 <= now_time < 2:
-                print(2,"초 뒤 데이터화 시작")
+                image = write_hangul(image, str(2) + "초 뒤 데이터화 시작")
             elif 2 <= now_time < 3:
-                print(1,"초 뒤 데이터화 시작")
+                image = write_hangul(image, str(1) + "초 뒤 데이터화 시작")
             else:
                 process_status = 4
 
@@ -113,11 +120,11 @@ with mp_hands.Hands(min_detection_confidence=0.5,
             now_time = time() - recording_time
             if now_time < 3:
                 if results.multi_hand_landmarks:
-                    print("data화 중...")
+                    image = write_hangul(image, "데이터화 중")
                     write_csv(image, label_count)
                     pass
                 else:
-                    print("손이 안보여요")
+                    image = write_hangul(image, "손이 안보여요")
             else:
                 process_status = 6
                 tempdata_file.close()
@@ -129,7 +136,7 @@ with mp_hands.Hands(min_detection_confidence=0.5,
         if process_status == 7:
             now_time = time() - ask_time
             if now_time < 4:
-                print("이 단어 다시 녹화할거면 q 저장하고 다음거 갈거면 e 안누르면 자동으로 저장")
+                image = write_hangul(image, "다시 녹화할거면 'q' / 다음거 갈거면 'e'")
                 exit_code = cv2.waitKey(1)
                 if exit_code == ord('q'):
                     process_status = 0
@@ -146,6 +153,8 @@ with mp_hands.Hands(min_detection_confidence=0.5,
 
         cv2.imshow('dataization', image)
 
+if tempdata_file:
+    tempdata_file.close()
 if os.path.isfile("files/temp_data.csv"):
     os.remove("files/temp_data.csv")
 dataset_file.close()
