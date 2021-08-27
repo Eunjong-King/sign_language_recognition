@@ -4,6 +4,8 @@ import mediapipe as mp
 import joblib
 import math
 from files.unicode import join_jamos
+from collections import Counter
+
 
 def get_label():
     feature_list = []
@@ -33,8 +35,9 @@ def get_label():
     d23 = math.sqrt((d8.x * w - d12.x * w) ** 2 + (d8.y * h - d12.y * h) ** 2)
     d34 = math.sqrt((d16.x * w - d12.x * w) ** 2 + (d16.y * h - d12.y * h) ** 2)
     feature_list.append(d23 / d34 - 1)
+    feature_list.append((max_y - min_y) / (max_x - min_x) - 1)
     feature_list = np.round(feature_list, decimals=5)
-    C = dic[kn.predict([feature_list])[0]]
+    C = label_char[kn.predict([feature_list])[0]]
 
     return C
 
@@ -75,15 +78,15 @@ def merge_hangul(ch, previous_ch, my_word):
         # ch가 특수기호일 때
         else:
             # 1일때 쌍자음으로 만들기, 2일때 재입력, 3일때 백스페이스, 4일때 스페이스
-            if ch == 1:
+            if ch == '1':
                 if previous_ch in ssang:
                     # 다행히도 쌍자음의 유니코드는 그냥 자음의 +1이다
                     my_word = my_word[:-1] + chr(ord(previous_ch) + 1)
-            elif ch == 2:
+            elif ch == '2':
                 pass
-            elif ch == 3:
+            elif ch == '3':
                 my_word = my_word[:-1]
-            elif ch == 4:
+            elif ch == '4':
                 my_word += ' '
 
             return my_word, ch
@@ -98,10 +101,9 @@ h = round(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 mp_drawing = mp.solutions.drawing_utils
 mp_hands = mp.solutions.hands
 dot_list = [4, 8, 12, 14, 16, 18, 20]
-dic = {'q':'ㅂ', 'w':'ㅈ', 'e':'ㄷ', 'r':'ㄱ', 't':'ㅅ', 'y':'ㅛ', 'u':'ㅕ', 'i':'ㅑ', 'o':'ㅐ', 'p':'ㅔ',
-       'a':'ㅁ', 's':'ㄴ', 'd':'ㅇ', 'f':'ㄹ', 'g':'ㅎ', 'h':'ㅗ', 'j':'ㅓ', 'k':'ㅏ', 'l':'ㅣ',
-       'z':'ㅋ', 'x':'ㅌ', 'c':'ㅊ', 'v':'ㅍ', 'b':'ㅠ', 'n':'ㅜ', 'm':'ㅡ',
-       '1':1, '2': 2, '3': 3, '4': 4}
+label_char = ['ㄱ','ㄴ','ㄷ','ㄹ','ㅁ','ㅂ','ㅅ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ',
+              'ㅏ','ㅑ','ㅓ','ㅕ','ㅗ','ㅛ','ㅜ','ㅠ','ㅡ','ㅣ','ㅐ','ㅒ','ㅔ','ㅖ','ㅢ','ㅚ','ㅟ',
+              '1','2','3','4']
 ja = ['ㄱ','ㄴ','ㄷ','ㄹ','ㅁ','ㅂ','ㅅ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ']
 mo = ['ㅏ','ㅑ','ㅓ','ㅕ','ㅗ','ㅛ','ㅜ','ㅠ','ㅡ','ㅣ','ㅐ','ㅒ','ㅔ','ㅖ','ㅢ','ㅚ','ㅟ']
 merge_mo = [['ㅗ', 'ㅏ', 'ㅘ'], ['ㅗ', 'ㅐ', 'ㅙ'], ['ㅜ', 'ㅓ', 'ㅝ'], ['ㅜ', 'ㅔ', 'ㅞ']]
@@ -112,6 +114,8 @@ merge_ja = [['ㄱ', 'ㅅ', 'ㄳ'], ['ㄴ', 'ㅈ', 'ㄵ'], ['ㄴ', 'ㅎ', 'ㄶ'],
 my_word = ''
 dump_list = []
 previous_ch = ''
+
+
 with mp_hands.Hands(min_detection_confidence=0.5,
                     min_tracking_confidence=0.999,
                     max_num_hands=1
@@ -130,9 +134,10 @@ with mp_hands.Hands(min_detection_confidence=0.5,
             for hand_landmarks in results.multi_hand_landmarks:
                 mp_drawing.draw_landmarks(image, hand_landmarks, mp_hands.HAND_CONNECTIONS)
                 C = get_label()
-                dump_list.append(C)
-                if len(dump_list) > 30 :
-                    ch = max(dump_list)
+                if previous_ch != C:
+                    dump_list.append(C)
+                if len(dump_list) > 20:
+                    ch = Counter(dump_list).most_common()[0][0]
                     my_word, previous_ch = merge_hangul(ch, previous_ch, my_word)
                     print(join_jamos(my_word))
                     dump_list = []

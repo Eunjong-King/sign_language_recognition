@@ -4,8 +4,12 @@ import random
 from sklearn.model_selection import train_test_split as tts
 from sklearn.neighbors import KNeighborsClassifier as KNC
 import joblib
+import os
 
-data = pd.read_csv("files/dataset.csv")
+
+if os.path.isfile("files/ML-model.pkl"):
+    os.remove("files/ML-model.pkl")
+data = pd.read_csv("./files/dataset.csv")
 value_data = pd.DataFrame(pd.value_counts(data[list(data)[-1]].values, sort=False))
 my_min = value_data[0].min()
 my_max = value_data[0].max()
@@ -24,7 +28,7 @@ data.to_csv("files/dataset.csv", mode='w', index=False)
 print("데이터 전처리 완료")
 
 data = np.round(data, decimals=5)
-feature_list = list(data)[:-2]
+feature_list = list(data)[:-1]
 data_input = data[feature_list].to_numpy()
 data_target = data['C'].to_numpy()
 train_input, test_input, train_target, test_target = tts(data_input, data_target)

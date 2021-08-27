@@ -7,6 +7,8 @@ from time import time
 import numpy as np
 from PIL import ImageFont, ImageDraw, Image
 
+
+# 총 6분정도 소요
 def write_csv(image, key_input):
     label = key_input
     feature_list = []
@@ -59,6 +61,9 @@ process_status = 0
 dataset_file = open("files/dataset.csv", 'a', newline='', encoding='utf-8')
 dataset_wr = csv.writer(dataset_file)
 label_count = 0
+label_char = ['ㄱ','ㄴ','ㄷ','ㄹ','ㅁ','ㅂ','ㅅ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ',
+              'ㅏ','ㅑ','ㅓ','ㅕ','ㅗ','ㅛ','ㅜ','ㅠ','ㅡ','ㅣ','ㅐ','ㅒ','ㅔ','ㅖ','ㅢ','ㅚ','ㅟ',
+              '쌍자음','flush','지우기','띄우기']
 with mp_hands.Hands(min_detection_confidence=0.5,
                     min_tracking_confidence=0.999,
                     max_num_hands=1
@@ -79,7 +84,7 @@ with mp_hands.Hands(min_detection_confidence=0.5,
             if time()-guild_photo_time < 2:
                 image = cv2.imread("files/guide/"+str(label_count)+".png")
                 image = cv2.resize(image, dsize=(w, h), interpolation=cv2.INTER_AREA)
-                image = write_hangul(image, str(label_count)+"번 사진 띄워주는 중...")
+                image = write_hangul(image, label_char[label_count]+" 사진 띄워주는 중...")
             else:
                 process_status = 2
 
@@ -102,10 +107,8 @@ with mp_hands.Hands(min_detection_confidence=0.5,
         if process_status == 3:
             now_time = time() - waiting_time
             if 0 <= now_time < 1:
-                image = write_hangul(image, str(3) + "초 뒤 데이터화 시작")
-            elif 1 <= now_time < 2:
                 image = write_hangul(image, str(2) + "초 뒤 데이터화 시작")
-            elif 2 <= now_time < 3:
+            elif 1 <= now_time < 2:
                 image = write_hangul(image, str(1) + "초 뒤 데이터화 시작")
             else:
                 process_status = 4
@@ -118,7 +121,7 @@ with mp_hands.Hands(min_detection_confidence=0.5,
 
         if process_status == 5:
             now_time = time() - recording_time
-            if now_time < 3:
+            if now_time < 6:
                 if results.multi_hand_landmarks:
                     image = write_hangul(image, "데이터화 중")
                     write_csv(image, label_count)
@@ -148,6 +151,8 @@ with mp_hands.Hands(min_detection_confidence=0.5,
                     tempdata_file.close()
                     process_status = 0
                     label_count += 1
+                    if label_count == 35:
+                        break
             else:
                 process_status = 0
 
